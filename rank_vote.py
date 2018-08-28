@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import sqlite3
+import time
 
 """
 This will accept ballots that contain dictionary objects
@@ -15,6 +16,7 @@ This will accept ballots that contain dictionary objects
 # TODO: 6 add database
 # TODO: 7 make candidate ID system
 # TODO: 8 find way to make # of candidates can be dynamically decided
+# TODO: left off: making ballots and reg_voters tables; create sample ballots;
 
 
 # {'1':'me', '2':'you', '3':'Busch'},
@@ -27,23 +29,23 @@ This will accept ballots that contain dictionary objects
 
 
 voter_list = {'eric': 1234, 'jon': 4321, 'alex': 5678, 'karl': 8765, 'beth': 1111, 'hannah': 2222}
-all_ballots = []
-ballot = {'alex': 5678, '1': 'eric', '2': 'idc', '3': 'me'}
-ballot_box = 'ballot_box.json'
-tally = 'tally.json'
+ballot = ('erichyatt5678',)
 
 conn = sqlite3.connect('voting.db')
 c = conn.cursor()
 
 
 def create_tables():
-	# ballots
+	# ballots - all valid ballots
 	c.execute(
-		'CREATE TABLE IF NOT EXISTS ballots(voter_id INTEGAR, name VARCHAR, first INTEGER, second INTEGER, third INTEGER, date TEXT)')
-	# mstr_tally
-	c.execute('CREATE TABLE IF NOT EXISTS mstr_tally(candidate VARCHAR, tally INTEGER, round_eliminated INTEGER)')
-	# rnd_tally
-	c.execute('CREATE TABLE IF NOT EXISTS rnd_tally(candidate VARCHAR, tally INTEGER)')
+		'CREATE TABLE IF NOT EXISTS ballots(ballot_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, first TEXT, second TEXT, third TEXT, date TEXT)')
+	# mstr_tally - final count after each round
+	c.execute('CREATE TABLE IF NOT EXISTS mstr_tally(candidate TEXT, tally INTEGER, round_eliminated INTEGER)')
+	# rnd_tally - tally after current round; to be added to mastr
+	c.execute('CREATE TABLE IF NOT EXISTS rnd_tally(candidate TEXT, tally INTEGER)')
+	# reg_voters - registered voters
+	c.execute(
+		"CREATE TABLE 'reg_voters' ('voter_id' TEXT NOT NULL UNIQUE,'cast'	INTEGER NOT NULL, PRIMARY KEY('voter_id'))")
 
 
 def collect_ballot(ballot: tuple):
@@ -55,32 +57,34 @@ def collect_ballot(ballot: tuple):
 
 		# ID
 		if column == 1:
+			# TODO: make sure voter is registered; mark ballot cast; replace vote_id with ballot_id
 			voter_id = obj
 		elif column == 2:
-			name = obj
-		elif column == 3:
 			first = obj
-		elif column == 4:
+		elif column == 3:
 			second = obj
-		elif column == 5:
+		elif column == 4:
 			third = obj
 		else:
 			print("Invalid entry on ballot.")
 
+		unix = time.time()
 		date = str(datetime.datetime.fromtimestamp(unix).strftime('%Y-%m-%d %H:%M:%S'))
-		c.execute("INSERT INTO ballots (voter_id, name, first, second, third,datestamp) VALUES (?, ?, ?, ?)",
-		          (voter_id, name, first, second, third, date))
-	# CHECK DATE/TIME STAMP
+		c.execute("INSERT INTO ballots (voter_id, name, first, second, third,date) VALUES (?, ?, ?, ?)",
+		          (voter_id, first, second, third, date))
+		# check ballots table for multiple
+		c.execute("SELECT voter_id, COUNT(*) count, date FROM ballots GROUP BY voter_id HAVING count > 1")
 
-	if id in voter_list:
-		del ballot[id]
-		all_ballots.append(ballot)
 
-		with open(ballot_box, 'r+') as file:
-			json.dump(all_ballots, file)
-		print("{}'s ballot was cast!".format(id))
-	else:
-		continue
+# if id in voter_list:
+# 	del ballot[id]
+# 	all_ballots.append(ballot)
+#
+# 	with open(ballot_box, 'r+') as file:
+# 		json.dump(all_ballots, file)
+# 	print("{}'s ballot was cast!".format(id))
+# else:
+# 	continue
 
 
 def count(all_ballots):
