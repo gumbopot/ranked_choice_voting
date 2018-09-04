@@ -14,7 +14,10 @@ This will accept ballots that contain dictionary objects
 # TODO: 4 real-time count and complete count
 # TODO: 5 check voter is registered; mark votes; delete id from ballot; remove voter from list
 # TODO: 6 add database
-# TODO: 7 make candidate ID system
+# TODO: 7 make candidate ID system; check ballots table for multiple
+# 		c.execute("SELECT voter_id, COUNT(*) count, date FROM ballots GROUP BY voter_id HAVING count > 1")
+# 		duplicates = c.fetchall()
+# 		print(duplicates)
 # TODO: 8 find way to make # of candidates can be dynamically decided
 # TODO: left off: making ballots and reg_voters tables; create sample ballots;
 
@@ -29,9 +32,9 @@ This will accept ballots that contain dictionary objects
 
 
 voter_list = {'eric': 1234, 'jon': 4321, 'alex': 5678, 'karl': 8765, 'beth': 1111, 'hannah': 2222}
-ballot = ('erichyatt5678',)
+ballot = ('erichyatt5678', 'Bush', 'Me', 'Jon')
 
-conn = sqlite3.connect('voting.db')
+conn = sqlite3.connect('vote.db')
 c = conn.cursor()
 
 
@@ -50,6 +53,11 @@ def create_tables():
 
 def collect_ballot(ballot: tuple):
 	column = 0
+	voter_id = ''
+	first = ''
+	second = ''
+	third = ''
+
 	for obj in list(ballot):
 		# count loops to decide what value is
 		# hopefully think of a better way to do this
@@ -59,6 +67,7 @@ def collect_ballot(ballot: tuple):
 		if column == 1:
 			# TODO: make sure voter is registered; mark ballot cast; replace vote_id with ballot_id
 			voter_id = obj
+		# TODO: turn candidate names into candidate id's
 		elif column == 2:
 			first = obj
 		elif column == 3:
@@ -68,12 +77,10 @@ def collect_ballot(ballot: tuple):
 		else:
 			print("Invalid entry on ballot.")
 
-		unix = time.time()
-		date = str(datetime.datetime.fromtimestamp(unix).strftime('%Y-%m-%d %H:%M:%S'))
-		c.execute("INSERT INTO ballots (voter_id, name, first, second, third,date) VALUES (?, ?, ?, ?)",
-		          (voter_id, first, second, third, date))
-		# check ballots table for multiple
-		c.execute("SELECT voter_id, COUNT(*) count, date FROM ballots GROUP BY voter_id HAVING count > 1")
+	unix = time.time()
+	date = str(datetime.datetime.fromtimestamp(unix).strftime('%Y-%m-%d %H:%M:%S'))
+	c.execute("INSERT INTO ballots (first, second, third, dt_tm) VALUES (?, ?, ?, ?)", (first, second, third, date))
+	conn.commit()
 
 
 # if id in voter_list:
@@ -110,4 +117,5 @@ def count(all_ballots):
 
 
 # count(all_ballots)
-count(all_ballots)
+collect_ballot(ballot)
+conn.close()
